@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
 import puppeteer from "puppeteer";
+import fs from "fs";
 
 dotenv.config();
 
@@ -67,7 +68,8 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
   console.log(totalTxnList.join("\n"));
 
   const spentAmtTxnsList = [];
-
+  // Collect all transaction items;
+  const allTxnData = [];
   const currentYearOnly = new Date().getFullYear();
   let isNotCurrentYear = false;
 
@@ -98,13 +100,13 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       const txnEthFee = await page.$eval("#ContentPlaceHolder1_spanTxFee", (ele) =>
         ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
-      console.log("Transaction Fee (eth): ", txnEthFee);
+      console.log("Transaction Fee (eth): ", Number(txnEthFee));
 
       // Cost per unit of gas specified for the transaction (in ETH)
       const gasEthPrice = await page.$eval("#ContentPlaceHolder1_spanGasPrice", (ele) =>
         ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
-      console.log("Gas Price (eth): ", gasEthPrice);
+      console.log("Gas Price (eth): ", Number(gasEthPrice));
 
       // Closing price of Ether on day of txn
       const ethUSD = await page.$eval("#ContentPlaceHolder1_spanClosingPrice", (ele) =>
@@ -126,12 +128,25 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       console.log("Gas Fee (USD): ", gasUsdFee);
       console.log("TOTAL: $", spentAmt);
 
-      const imageFile = `${addressTrunc}-${txn?.substring(0, 8)}`;
+      const txnHashTrunc = txn?.substring(0, 8);
+      const imageFile = `output/screenshots/${addressTrunc}-${txnHashTrunc}.png`;
       await page.screenshot({
-        path: `screenshots/${imageFile}.png`,
+        path: imageFile,
         fullPage: true,
       });
 
+      const txnItem = {
+        date: date.local,
+        spentAmt: Number(spentAmt).toPrecision(3),
+        description: `Fee reimbursement for txn: ${txnHashTrunc}`,
+        txn,
+        txnEthFee: Number(txnEthFee),
+        gasEthPrice: Number(gasEthPrice),
+        imageFile,
+      };
+
+      console.table(txnItem);
+      allTxnData.push(txnItem);
       console.log("-----------------------------------");
     } catch (err) {
       console.error(err);
@@ -141,5 +156,35 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
   const totalSpentAmt = spentAmtTxnsList.reduce((prev, curr) => prev + curr, 0);
   console.log("Total Spent Amt: ", totalSpentAmt);
 
+  createCsvFile(allTxnData);
+
   await browser.close();
 })();
+
+function createCsvFile(txnList: any) {
+  const headerRow = [
+    "Date",
+    "Spent Amount",
+    "Business Purpose",
+    "Transaction Hash",
+    "Transaction Fee (ETH)",
+    "Gas Fee (ETH)",
+  ].join(", ");
+
+  const rows = [headerRow];
+
+  Object.values(txnList).map((value: any) => {
+    const row = Object.values(value).join(", ");
+    rows.push(row);
+  });
+
+  const allRows = rows.join("\n");
+
+  fs.writeFile(`output/${addressTrunc}-reimbursements.csv`, allRows, "utf8", (err) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.log(`Data saved to 'output' directory`);
+    }
+  });
+}
