@@ -24,23 +24,56 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       request.continue();
     }
   });
-  await page.goto(`https://etherscan.io/address/${process.env.ADDRESS}`);
 
-  // Wait for the txns page to load and display the txns.
-  const txnsList = await page.$$eval(".hash-tag.myFnExpandBox_searchVal", (rows) =>
-    rows.map((el) => el.textContent)
-  );
+  // Start at first page
+  let currPageNum = 1;
+  let totalPageNum = 1;
 
-  console.log(txnsList.join("\n"));
+  await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}`);
+
+  // Get total number of pages at the first page
+  try {
+    totalPageNum = await page.$$eval(`[aria-label="page navigation"] li.page-item`, (btns) => {
+      const pageLabelText = btns[2]?.textContent?.split(" ") || "";
+      const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
+      currPageNum = 2;
+
+      return pageNumber;
+    });
+  } catch (err) {
+    console.error(err);
+  }
+
+  console.log(`total pages: ${totalPageNum}`);
+
+  // Collect all transaction hashes
+  const totalTxnList = [];
+
+  while (currPageNum < totalPageNum + 1) {
+    console.log(`On page ${currPageNum}`);
+
+    await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}&p=${currPageNum}`);
+
+    // Wait for the txns page to load and display the txns.
+    const txnsList = await page.$$eval(".hash-tag > .myFnExpandBox_searchVal", (rows) =>
+      rows.map((el) => el.textContent)
+    );
+    totalTxnList.push(...txnsList);
+
+    // Increment current page number
+    currPageNum++;
+  }
+
+  console.log(totalTxnList.join("\n"));
 
   const spentAmtTxnsList = [];
 
   const currentYearOnly = new Date().getFullYear();
   let isNotCurrentYear = false;
 
-  for (const txn of txnsList) {
+  for (const txn of totalTxnList) {
     await page.goto(`https://etherscan.io/tx/${txn}`, { waitUntil: "domcontentloaded" });
-    console.log("Transaction number: ", txn);
+    console.log("Transaction hash: ", txn);
 
     // Date of txn
     const date = await page.$eval("#ContentPlaceHolder1_divTimeStamp", (ele) => {
@@ -60,11 +93,13 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
     }
     console.log("Date of txn: ", date);
 
+    // Amount paid to the miner for processing the transaction (in ETH)
     const txnEthFee = await page.$eval("#ContentPlaceHolder1_spanTxFee", (ele) =>
       ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
     );
     console.log("Transaction Fee (eth): ", txnEthFee);
 
+    // Cost per unit of gas specified for the transaction (in ETH)
     const gasEthPrice = await page.$eval("#ContentPlaceHolder1_spanGasPrice", (ele) =>
       ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
     );
@@ -76,8 +111,10 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
     );
     console.log("Ether Closing USD: ", ethUSD);
 
+    // Fee values in USD
     const txnUsdFee = Number(txnEthFee) * Number(ethUSD);
     const gasUsdFee = Number(gasEthPrice) * Number(ethUSD);
+    // Total fees in USD
     const spentAmt = txnUsdFee + gasUsdFee;
 
     if (!isNotCurrentYear) {
@@ -94,7 +131,7 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       fullPage: true,
     });
 
-    console.log("-----");
+    console.log("-----------------------------------");
   }
 
   const totalSpentAmt = spentAmtTxnsList.reduce((prev, curr) => prev + curr, 0);
