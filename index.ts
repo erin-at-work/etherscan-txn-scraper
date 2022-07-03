@@ -10,10 +10,10 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
   const browser = await puppeteer.launch({
     headless: false,
     ignoreHTTPSErrors: true,
-    args: ["--disable-setuid-sandbox", "--window-size=1920,1080"],
+    args: ["--disable-setuid-sandbox", "--window-size=1400,750"],
     defaultViewport: {
-      width: 1920,
-      height: 1080,
+      width: 1400,
+      height: 750,
     },
   });
   const page = await browser.newPage();
@@ -31,6 +31,11 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
   let totalPageNum = 1;
 
   await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}`);
+  await page.setCookie({
+    name: "etherscan_cookieconsent",
+    value: "True",
+    domain: "etherscan.io",
+  });
 
   // Get total number of pages at the first page
   try {
@@ -41,11 +46,11 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
 
       return pageNumber;
     });
-  } catch (err) {
-    console.error(err);
+  } catch {
+    console.info("Only one page");
   }
 
-  console.log(`total pages: ${totalPageNum}`);
+  console.log(`Total pages: ${totalPageNum}`);
 
   // Collect all transaction hashes
   const totalTxnList = [];
@@ -100,13 +105,11 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       const txnEthFee = await page.$eval("#ContentPlaceHolder1_spanTxFee", (ele) =>
         ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
-      console.log("Transaction Fee (eth): ", Number(txnEthFee));
 
       // Cost per unit of gas specified for the transaction (in ETH)
       const gasEthPrice = await page.$eval("#ContentPlaceHolder1_spanGasPrice", (ele) =>
         ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
-      console.log("Gas Price (eth): ", Number(gasEthPrice));
 
       // Closing price of Ether on day of txn
       const ethUSD = await page.$eval("#ContentPlaceHolder1_spanClosingPrice", (ele) =>
@@ -120,33 +123,35 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       // Total fees in USD
       const spentAmt = txnUsdFee + gasUsdFee;
 
-      if (!isNotCurrentYear) {
-        spentAmtTxnsList.push(spentAmt);
-      }
-
       console.log("Transaction Fee (USD): ", txnUsdFee);
       console.log("Gas Fee (USD): ", gasUsdFee);
       console.log("TOTAL: $", spentAmt);
 
       const txnHashTrunc = txn?.substring(0, 8);
-      const imageFile = `output/screenshots/${addressTrunc}-${txnHashTrunc}.png`;
-      await page.screenshot({
-        path: imageFile,
-        fullPage: true,
-      });
 
-      const txnItem = {
-        date: date.local,
-        spentAmt: Number(spentAmt).toPrecision(3),
-        description: `Fee reimbursement for txn: ${txnHashTrunc}`,
-        txn,
-        txnEthFee: Number(txnEthFee),
-        gasEthPrice: Number(gasEthPrice),
-        imageFile,
-      };
+      // Only collect data for relevant year
+      if (!isNotCurrentYear) {
+        const imageFile = `output/screenshots/${addressTrunc}-${txnHashTrunc}.png`;
 
-      console.table(txnItem);
-      allTxnData.push(txnItem);
+        const txnItem = {
+          date: date.local,
+          spentAmt: Number(spentAmt).toPrecision(3),
+          description: `Fee reimbursement for txn: ${txnHashTrunc}`,
+          txn,
+          txnEthFee: Number(txnEthFee),
+          gasEthPrice: Number(gasEthPrice),
+          imageFile,
+        };
+
+        console.table(txnItem);
+        spentAmtTxnsList.push(spentAmt);
+        allTxnData.push(txnItem);
+        await page.screenshot({
+          path: imageFile,
+          fullPage: true,
+        });
+      }
+
       console.log("-----------------------------------");
     } catch (err) {
       console.error(err);
