@@ -70,8 +70,6 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
     currPageNum++;
   }
 
-  console.log(totalTxnList.join("\n"));
-
   const spentAmtTxnsList = [];
   // Collect all transaction items;
   const allTxnData = [];
@@ -135,11 +133,11 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
 
         const txnItem = {
           date: date.local,
-          spentAmt: Number(spentAmt).toPrecision(3),
+          "spent amt": Number(spentAmt).toPrecision(3),
           description: `Fee reimbursement for txn: ${txnHashTrunc}`,
-          txn,
-          txnEthFee: Number(txnEthFee),
-          gasEthPrice: Number(gasEthPrice),
+          "txn hash": txn,
+          "txn fee (eth)": Number(txnEthFee),
+          "gas fee (eth)": Number(gasEthPrice),
           imageFile,
         };
 
