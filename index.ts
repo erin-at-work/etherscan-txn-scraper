@@ -1,21 +1,26 @@
-import * as dotenv from "dotenv";
 import puppeteer from "puppeteer";
 import fs from "fs";
-
-dotenv.config();
+import {
+  ADDRESS_TRUNC,
+  ARTIFACTS_DIR,
+  ETHERSCAN_BY_ADDRESS,
+  ETHERSCAN_BY_TXN,
+  INPUT_TXT,
+  OUTPUT_DIR,
+  OUTPUT_FILE_NAME,
+} from "./src/constants";
 
 let isFile = false;
-const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
 
 // Collect all transaction hashes
 const totalTxnList = [];
 
-if (fs.existsSync("input/txns.txt")) {
+if (fs.existsSync(INPUT_TXT)) {
   isFile = true;
 }
-const fileName = isFile ? "file" : addressTrunc;
+const fileName = isFile ? OUTPUT_FILE_NAME : ADDRESS_TRUNC;
 
-fs.readFile("input/txns.txt", "utf8", function (err, data) {
+fs.readFile(INPUT_TXT, "utf8", function (err, data) {
   if (err) {
     console.error(err);
     console.log("Check yo self, before you wreck yo'self");
@@ -49,7 +54,7 @@ fs.readFile("input/txns.txt", "utf8", function (err, data) {
   });
 
   try {
-    await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}`);
+    await page.goto(ETHERSCAN_BY_ADDRESS);
     await page.setCookie({
       name: "etherscan_cookieconsent",
       value: "True",
@@ -86,9 +91,7 @@ fs.readFile("input/txns.txt", "utf8", function (err, data) {
     while (currPageNum < totalPageNum + 1) {
       console.log(`On page ${currPageNum}`);
 
-      await page.goto(
-        `https://etherscan.io/txs?a=${process.env.ADDRESS}&p=${currPageNum}`
-      );
+      await page.goto(`${ETHERSCAN_BY_ADDRESS}&p=${currPageNum}`);
 
       // Wait for the txns page to load and display the txns.
       const txnsList = await page.$$eval(
@@ -110,7 +113,7 @@ fs.readFile("input/txns.txt", "utf8", function (err, data) {
 
   for (const txn of totalTxnList) {
     try {
-      await page.goto(`https://etherscan.io/tx/${txn}`, {
+      await page.goto(`${ETHERSCAN_BY_TXN}/${txn}`, {
         waitUntil: "domcontentloaded",
       });
       console.log("Transaction hash: ", txn);
@@ -170,8 +173,8 @@ fs.readFile("input/txns.txt", "utf8", function (err, data) {
 
       // Only collect data for relevant year
       if (!isNotCurrentYear || isFile) {
-        const imageFile = `output/screenshots/${
-          isFile ? "file" : addressTrunc
+        const imageFile = `${ARTIFACTS_DIR}/${
+          isFile ? OUTPUT_FILE_NAME : ADDRESS_TRUNC
         }-${txnHashTrunc}.png`;
 
         const txnItem = {
@@ -227,7 +230,7 @@ function createCsvFile(txnList: any) {
   const allRows = rows.join("\n");
 
   fs.writeFile(
-    `output/${fileName}-reimbursements.csv`,
+    `${OUTPUT_DIR}/${fileName}-reimbursements.csv`,
     allRows,
     "utf8",
     (err) => {
@@ -235,7 +238,7 @@ function createCsvFile(txnList: any) {
         console.error(err);
       } else {
         console.log(
-          `File created: ${fileName}-reimbursements.csv saved to 'output' directory`
+          `File created: ${fileName}-reimbursements.csv saved to '${OUTPUT_DIR}' directory`
         );
       }
     }
