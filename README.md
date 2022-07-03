@@ -6,23 +6,29 @@ Gas & Txn fee reimbursements made easy (for cornbase employees).
 
 ### Setup
 
-Copy `.env.sample` to `.env` and update with your address
-
-```bash
-cp .env.sample .env
-```
-
 Install
 
 ```
 yarn install
 ```
 
-### Options
+### Generate Artifacts + CSV file
+
+Generates `<filename>-reimbursements.csv` file and screenshots to the `output/` directory.
 
 **(1) Get all transactions from an address**
 
 Script will find all txns for an address, and visit each txn page to generate data & assets.
+
+Copy `.env.sample` to `.env` and update with your address
+
+```bash
+cp .env.sample .env
+```
+
+```bash
+yarn generate:address
+```
 
 **(2) List transactions to generate data**
 
@@ -32,10 +38,22 @@ Create file `txns.txt` and list transaction hash on each line
 touch txns.txt
 ```
 
-### Start generating data & images
-
-```
-yarn start
+```bash
+yarn generate:file
 ```
 
-Generates `<filename>-reimbursements.csv` file and screenshots to the `output/` directory.
+![console](example.png)
+
+### Clear files
+
+**Clear artifacts**
+
+```bash
+yarn clear:artifacts
+```
+
+**Clear csv**
+
+```bash
+yarn clear:csv
+```

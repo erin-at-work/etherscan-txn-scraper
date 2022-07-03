@@ -16,7 +16,8 @@
     "typescript": "^4.7.4"
   },
   "scripts": {
-    "start": "node --loader ts-node/esm index.ts",
+    "generate:file": "node --loader ts-node/esm index.ts file",
+    "generate:address": "node --loader ts-node/esm index.ts address",
     "clear:artifacts": "node --loader ts-node/esm src/clear.ts image",
     "clear:csv": "node --loader ts-node/esm src/clear.ts csv"
   }

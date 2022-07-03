@@ -5,33 +5,19 @@ import {
   ARTIFACTS_DIR,
   ETHERSCAN_BY_ADDRESS,
   ETHERSCAN_BY_TXN,
-  INPUT_TXT,
   OUTPUT_DIR,
   OUTPUT_FILE_NAME,
 } from "./src/constants";
+import { getAllAddressTxns, getFileTxns } from "./src/utils";
 
-let isFile = false;
+const txnSource = process.argv[2];
+
+const isInputFileSource = txnSource === "file" ? true : false;
+
+const fileName = isInputFileSource ? OUTPUT_FILE_NAME : ADDRESS_TRUNC;
 
 // Collect all transaction hashes
-const totalTxnList = [];
-
-if (fs.existsSync(INPUT_TXT)) {
-  isFile = true;
-}
-const fileName = isFile ? OUTPUT_FILE_NAME : ADDRESS_TRUNC;
-
-fs.readFile(INPUT_TXT, "utf8", function (err, data) {
-  if (err) {
-    console.error(err);
-    console.log("Check yo self, before you wreck yo'self");
-
-    return;
-  }
-  // TODO: Validate each txn
-  const txnLines = data.split("\n").filter(Boolean);
-  totalTxnList.push(...txnLines);
-  console.log(txnLines);
-});
+const totalTxnList: string[] = [];
 
 (async () => {
   const browser = await puppeteer.launch({
@@ -64,46 +50,10 @@ fs.readFile(INPUT_TXT, "utf8", function (err, data) {
     console.error(err);
   }
 
-  // If going through all txns, get all transactions from each page
-  if (!isFile) {
-    // Start at first page
-    let currPageNum = 1;
-    let totalPageNum = 1;
-
-    // Get total number of pages at the first page
-    try {
-      totalPageNum = await page.$$eval(
-        `[aria-label="page navigation"] li.page-item`,
-        (btns) => {
-          const pageLabelText = btns[2]?.textContent?.split(" ") || "";
-          const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
-          currPageNum = 2;
-
-          return pageNumber;
-        }
-      );
-    } catch {
-      console.info("Only one page");
-    }
-
-    console.log(`Total pages: ${totalPageNum}`);
-
-    while (currPageNum < totalPageNum + 1) {
-      console.log(`On page ${currPageNum}`);
-
-      await page.goto(`${ETHERSCAN_BY_ADDRESS}&p=${currPageNum}`);
-
-      // Wait for the txns page to load and display the txns.
-      const txnsList = await page.$$eval(
-        ".hash-tag > .myFnExpandBox_searchVal",
-        (rows) => rows.map((el) => el.textContent)
-      );
-      totalTxnList.push(...txnsList);
-
-      // Increment current page number
-      currPageNum++;
-    }
-  }
+  // Collect transaction hashes by input source
+  isInputFileSource
+    ? getFileTxns(totalTxnList)
+    : await getAllAddressTxns(totalTxnList, page);
 
   const spentAmtTxnsList = [];
   // Collect all transaction items;
@@ -172,9 +122,9 @@ fs.readFile(INPUT_TXT, "utf8", function (err, data) {
       const txnHashTrunc = txn?.substring(0, 8);
 
       // Only collect data for relevant year
-      if (!isNotCurrentYear || isFile) {
+      if (!isNotCurrentYear || isInputFileSource) {
         const imageFile = `${ARTIFACTS_DIR}/${
-          isFile ? OUTPUT_FILE_NAME : ADDRESS_TRUNC
+          isInputFileSource ? OUTPUT_FILE_NAME : ADDRESS_TRUNC
         }-${txnHashTrunc}.png`;
 
         const txnItem = {
@@ -184,7 +134,7 @@ fs.readFile(INPUT_TXT, "utf8", function (err, data) {
           "txn hash": txn,
           "txn fee (eth)": Number(txnEthFee),
           "gas fee (eth)": Number(gasEthPrice),
-          imageFile,
+          "image file": imageFile,
         };
 
         console.table(txnItem);
