@@ -61,6 +61,8 @@ export const isInputFileSource = txnSource === "file" ? true : false;
 
   for (const txn of totalTxnList) {
     try {
+      // Wait for 1 second
+      await page.waitForTimeout(1000);
       await page.goto(`${ETHERSCAN_BY_TXN}/${txn}`, {
         waitUntil: "domcontentloaded",
       });
