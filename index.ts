@@ -4,7 +4,29 @@ import fs from "fs";
 
 dotenv.config();
 
+let isFile = false;
 const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
+
+// Collect all transaction hashes
+const totalTxnList = [];
+
+if (fs.existsSync("input/txns.txt")) {
+  isFile = true;
+}
+const fileName = isFile ? "file" : addressTrunc;
+
+fs.readFile("input/txns.txt", "utf8", function (err, data) {
+  if (err) {
+    console.error(err);
+    console.log("Check yo self, before you wreck yo'self");
+
+    return;
+  }
+  // TODO: Validate each txn
+  const txnLines = data.split("\n").filter(Boolean);
+  totalTxnList.push(...txnLines);
+  console.log(txnLines);
+});
 
 (async () => {
   const browser = await puppeteer.launch({
@@ -26,48 +48,58 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
     }
   });
 
-  // Start at first page
-  let currPageNum = 1;
-  let totalPageNum = 1;
-
-  await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}`);
-  await page.setCookie({
-    name: "etherscan_cookieconsent",
-    value: "True",
-    domain: "etherscan.io",
-  });
-
-  // Get total number of pages at the first page
   try {
-    totalPageNum = await page.$$eval(`[aria-label="page navigation"] li.page-item`, (btns) => {
-      const pageLabelText = btns[2]?.textContent?.split(" ") || "";
-      const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
-      currPageNum = 2;
-
-      return pageNumber;
+    await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}`);
+    await page.setCookie({
+      name: "etherscan_cookieconsent",
+      value: "True",
+      domain: "etherscan.io",
     });
-  } catch {
-    console.info("Only one page");
+  } catch (err) {
+    console.error(err);
   }
 
-  console.log(`Total pages: ${totalPageNum}`);
+  // If going through all txns, get all transactions from each page
+  if (!isFile) {
+    // Start at first page
+    let currPageNum = 1;
+    let totalPageNum = 1;
 
-  // Collect all transaction hashes
-  const totalTxnList = [];
+    // Get total number of pages at the first page
+    try {
+      totalPageNum = await page.$$eval(
+        `[aria-label="page navigation"] li.page-item`,
+        (btns) => {
+          const pageLabelText = btns[2]?.textContent?.split(" ") || "";
+          const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
+          currPageNum = 2;
 
-  while (currPageNum < totalPageNum + 1) {
-    console.log(`On page ${currPageNum}`);
+          return pageNumber;
+        }
+      );
+    } catch {
+      console.info("Only one page");
+    }
 
-    await page.goto(`https://etherscan.io/txs?a=${process.env.ADDRESS}&p=${currPageNum}`);
+    console.log(`Total pages: ${totalPageNum}`);
 
-    // Wait for the txns page to load and display the txns.
-    const txnsList = await page.$$eval(".hash-tag > .myFnExpandBox_searchVal", (rows) =>
-      rows.map((el) => el.textContent)
-    );
-    totalTxnList.push(...txnsList);
+    while (currPageNum < totalPageNum + 1) {
+      console.log(`On page ${currPageNum}`);
 
-    // Increment current page number
-    currPageNum++;
+      await page.goto(
+        `https://etherscan.io/txs?a=${process.env.ADDRESS}&p=${currPageNum}`
+      );
+
+      // Wait for the txns page to load and display the txns.
+      const txnsList = await page.$$eval(
+        ".hash-tag > .myFnExpandBox_searchVal",
+        (rows) => rows.map((el) => el.textContent)
+      );
+      totalTxnList.push(...txnsList);
+
+      // Increment current page number
+      currPageNum++;
+    }
   }
 
   const spentAmtTxnsList = [];
@@ -78,20 +110,26 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
 
   for (const txn of totalTxnList) {
     try {
-      await page.goto(`https://etherscan.io/tx/${txn}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`https://etherscan.io/tx/${txn}`, {
+        waitUntil: "domcontentloaded",
+      });
       console.log("Transaction hash: ", txn);
 
       // Date of txn
-      const date = await page.$eval("#ContentPlaceHolder1_divTimeStamp", (ele) => {
-        const spanTextContent = ele.textContent?.match(/(?<=\().*(?=\))/) || [];
-        const dateString = spanTextContent[0].split(" ")[0];
-        const date = new Date(dateString);
+      const date = await page.$eval(
+        "#ContentPlaceHolder1_divTimeStamp",
+        (ele) => {
+          const spanTextContent =
+            ele.textContent?.match(/(?<=\().*(?=\))/) || [];
+          const dateString = spanTextContent[0].split(" ")[0];
+          const date = new Date(dateString);
 
-        return {
-          year: date.getFullYear(),
-          local: date.toLocaleDateString(),
-        };
-      });
+          return {
+            year: date.getFullYear(),
+            local: date.toLocaleDateString(),
+          };
+        }
+      );
 
       isNotCurrentYear = date.year !== currentYearOnly;
       if (isNotCurrentYear) {
@@ -100,18 +138,21 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       console.log("Date of txn: ", date);
 
       // Amount paid to the miner for processing the transaction (in ETH)
-      const txnEthFee = await page.$eval("#ContentPlaceHolder1_spanTxFee", (ele) =>
-        ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
+      const txnEthFee = await page.$eval(
+        "#ContentPlaceHolder1_spanTxFee",
+        (ele) => ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
 
       // Cost per unit of gas specified for the transaction (in ETH)
-      const gasEthPrice = await page.$eval("#ContentPlaceHolder1_spanGasPrice", (ele) =>
-        ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
+      const gasEthPrice = await page.$eval(
+        "#ContentPlaceHolder1_spanGasPrice",
+        (ele) => ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
 
       // Closing price of Ether on day of txn
-      const ethUSD = await page.$eval("#ContentPlaceHolder1_spanClosingPrice", (ele) =>
-        ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
+      const ethUSD = await page.$eval(
+        "#ContentPlaceHolder1_spanClosingPrice",
+        (ele) => ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
       console.log("Ether Closing USD: ", ethUSD);
 
@@ -128,8 +169,10 @@ const addressTrunc = `${process.env.ADDRESS}`.substring(0, 8);
       const txnHashTrunc = txn?.substring(0, 8);
 
       // Only collect data for relevant year
-      if (!isNotCurrentYear) {
-        const imageFile = `output/screenshots/${addressTrunc}-${txnHashTrunc}.png`;
+      if (!isNotCurrentYear || isFile) {
+        const imageFile = `output/screenshots/${
+          isFile ? "file" : addressTrunc
+        }-${txnHashTrunc}.png`;
 
         const txnItem = {
           date: date.local,
@@ -183,11 +226,18 @@ function createCsvFile(txnList: any) {
 
   const allRows = rows.join("\n");
 
-  fs.writeFile(`output/${addressTrunc}-reimbursements.csv`, allRows, "utf8", (err) => {
-    if (err) {
-      console.error(err);
-    } else {
-      console.log(`Data saved to 'output' directory`);
+  fs.writeFile(
+    `output/${fileName}-reimbursements.csv`,
+    allRows,
+    "utf8",
+    (err) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log(
+          `File created: ${fileName}-reimbursements.csv saved to 'output' directory`
+        );
+      }
     }
-  });
+  );
 }
