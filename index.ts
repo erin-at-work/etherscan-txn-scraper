@@ -1,23 +1,21 @@
 import puppeteer from "puppeteer";
-import fs from "fs";
 import {
   ADDRESS_TRUNC,
   ARTIFACTS_DIR,
   ETHERSCAN_BY_ADDRESS,
   ETHERSCAN_BY_TXN,
-  OUTPUT_DIR,
   OUTPUT_FILE_NAME,
 } from "./src/constants";
-import { getAllAddressTxns, getFileTxns } from "./src/utils";
-
-const txnSource = process.argv[2];
-
-const isInputFileSource = txnSource === "file" ? true : false;
-
-const fileName = isInputFileSource ? OUTPUT_FILE_NAME : ADDRESS_TRUNC;
+import { createCsvFile, getAllAddressTxns, getFileTxns } from "./src/utils";
 
 // Collect all transaction hashes
 const totalTxnList: string[] = [];
+
+// Collect failed transaction hashes
+const failedTxnList: string[] = [];
+
+export const txnSource = process.argv[2];
+export const isInputFileSource = txnSource === "file" ? true : false;
 
 (async () => {
   const browser = await puppeteer.launch({
@@ -148,49 +146,22 @@ const totalTxnList: string[] = [];
 
       console.log("-----------------------------------");
     } catch (err) {
+      failedTxnList.push(txn);
       console.error(err);
     }
   }
 
   const totalSpentAmt = spentAmtTxnsList.reduce((prev, curr) => prev + curr, 0);
   console.log("Total Spent Amt: ", totalSpentAmt);
+  console.log("=======================================");
+
+  if (failedTxnList.length > 0) {
+    console.log("Failed transactions:");
+
+    console.table(failedTxnList);
+  }
 
   createCsvFile(allTxnData);
 
   await browser.close();
 })();
-
-function createCsvFile(txnList: any) {
-  const headerRow = [
-    "Date",
-    "Spent Amount",
-    "Business Purpose",
-    "Transaction Hash",
-    "Transaction Fee (ETH)",
-    "Gas Fee (ETH)",
-  ].join(", ");
-
-  const rows = [headerRow];
-
-  Object.values(txnList).map((value: any) => {
-    const row = Object.values(value).join(", ");
-    rows.push(row);
-  });
-
-  const allRows = rows.join("\n");
-
-  fs.writeFile(
-    `${OUTPUT_DIR}/${fileName}-reimbursements.csv`,
-    allRows,
-    "utf8",
-    (err) => {
-      if (err) {
-        console.error(err);
-      } else {
-        console.log(
-          `File created: ${fileName}-reimbursements.csv saved to '${OUTPUT_DIR}' directory`
-        );
-      }
-    }
-  );
-}

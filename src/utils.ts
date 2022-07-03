@@ -1,6 +1,13 @@
 import fs from "fs";
 import { Page } from "puppeteer";
-import { ETHERSCAN_BY_ADDRESS, INPUT_TXT } from "./constants";
+import { isInputFileSource, txnSource } from "..";
+import {
+  ADDRESS_TRUNC,
+  ETHERSCAN_BY_ADDRESS,
+  INPUT_TXT,
+  OUTPUT_DIR,
+  OUTPUT_FILE_NAME,
+} from "./constants";
 
 export const getFileTxns = (txns: string[]) => {
   if (!fs.existsSync(INPUT_TXT)) {
@@ -58,4 +65,63 @@ export const getAllAddressTxns = async (txns: string[], page: Page) => {
   }
 
   return txns;
+};
+
+export const createCsvFile = (
+  txnList: {
+    date: string;
+    "spent amt": string;
+    description: string;
+    "txn hash": string;
+    "txn fee (eth)": number;
+    "gas fee (eth)": number;
+    "image file": string;
+  }[]
+) => {
+  const fileName = isInputFileSource ? OUTPUT_FILE_NAME : ADDRESS_TRUNC;
+  const headerRow = [
+    "Date",
+    "Spent Amount",
+    "Business Purpose",
+    "Transaction Hash",
+    "Transaction Fee (ETH)",
+    "Gas Fee (ETH)",
+  ].join(", ");
+
+  const rows = [headerRow];
+
+  Object.values(txnList).map((value: any) => {
+    const row = Object.values(value).join(", ");
+    rows.push(row);
+  });
+
+  const allRows = rows.join("\n");
+
+  fs.writeFile(
+    `${OUTPUT_DIR}/${fileName}-reimbursements.csv`,
+    allRows,
+    "utf8",
+    (err) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log(
+          `File created: ${fileName}-reimbursements.csv saved to '${OUTPUT_DIR}' directory`
+        );
+      }
+    }
+  );
+};
+
+export const createFailedTxnsFile = (txns: string[]) => {
+  const failedTxns = `${OUTPUT_DIR}/failed-txns.txt`;
+  fs.writeFile(failedTxns, txns.join("\n"), "utf8", (err) => {
+    if (err) {
+      throw err;
+    }
+
+    console.log(
+      `File created: ${failedTxns} saved to '${OUTPUT_DIR}' directory`
+    );
+  });
 };
