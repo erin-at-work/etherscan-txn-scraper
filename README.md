@@ -2,7 +2,7 @@
 
 Gas & Txn fee reimbursements made easy (for cornbase employees).
 
-**Why did I make this?** After tediously copying & pasting tiny amounts, tracking totals on a spreadsheet, and collecting screenshots of each transaction page, I thought to myself ... "programmer, know your power".
+**Why did I make this?** After tediously copying & pasting tiny amounts, tracking totals on a spreadsheet, and collecting screenshots of each transaction page, I thought to myself ... "programmer, use your skill".
 
 ### Setup
 
