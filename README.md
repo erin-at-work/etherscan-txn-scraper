@@ -2,7 +2,7 @@
 
 Gas & Txn fee reimbursements made easy (for cornbase employees).
 
-**Why?** I'm not going to manually copy & paste tiny amounts, track totals on a spreadsheet, while also collecting screenshots of each transaction page.
+**Why did I make this?** After tediously copying & pasting tiny amounts, tracking totals on a spreadsheet, and collecting screenshots of each transaction page, I thought to myself ... "programmer, know your power".
 
 ### Setup
 
@@ -20,6 +20,8 @@ Generates `<filename>-reimbursements.csv` file and screenshots to the `output/` 
 
 Script will find all txns for an address, and visit each txn page to generate data & assets.
 
+⚠️ If you've a large number of transactions, running by address will go through _every_ one of them.
+
 Copy `.env.sample` to `.env` and update with your address
 
 ```bash
@@ -30,7 +32,7 @@ cp .env.sample .env
 yarn generate:address
 ```
 
-**(2) List transactions to generate data**
+**(2) Get list of transactions from text file**
 
 Create file `txns.txt` and list transaction hash on each line
 

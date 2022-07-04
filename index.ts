@@ -6,7 +6,12 @@ import {
   ETHERSCAN_BY_TXN,
   OUTPUT_FILE_NAME,
 } from "./src/constants";
-import { createCsvFile, getAllAddressTxns, getFileTxns } from "./src/utils";
+import {
+  createCsvFile,
+  createFailedTxnsFile,
+  getAllAddressTxns,
+  getFileTxns,
+} from "./src/utils";
 
 // Collect all transaction hashes
 const totalTxnList: string[] = [];
@@ -61,7 +66,7 @@ export const isInputFileSource = txnSource === "file" ? true : false;
 
   for (const txn of totalTxnList) {
     try {
-      // Wait for 1 second
+      // Wait for 1 second between takes otherwise etherscan complains
       await page.waitForTimeout(1000);
       await page.goto(`${ETHERSCAN_BY_TXN}/${txn}`, {
         waitUntil: "domcontentloaded",
@@ -159,8 +164,8 @@ export const isInputFileSource = txnSource === "file" ? true : false;
 
   if (failedTxnList.length > 0) {
     console.log("Failed transactions:");
-
     console.table(failedTxnList);
+    createFailedTxnsFile(failedTxnList);
   }
 
   createCsvFile(allTxnData);
