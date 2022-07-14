@@ -34,13 +34,13 @@ yarn generate:address
 
 **(2) Get list of transactions from text file**
 
-Create file `txns.txt` and list transaction hash on each line
+In the `input/` directory create file `txns.txt` and list transaction hash on each line
 
 ```bash
 touch txns.txt
 ```
 
-ie: 
+ie: `input/txns.txt`
 ```
 0xf1ee25996fa4b4aa6c7e4b963b50s5fd8c0e1cf1c73cdbde668d7e87a5057719
 0xbb7c55768be7cabad3dc8b387db975fb6e81b8dad0bbddbbbfc7651ebcb22890
