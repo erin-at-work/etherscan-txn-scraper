@@ -30,20 +30,20 @@ export const getAllAddressTxns = async (txns: string[], page: Page) => {
   let totalPageNum = 1;
 
   // Get total number of pages at the first page
-  try {
-    totalPageNum = await page.$$eval(
-      `[aria-label="page navigation"] li.page-item`,
-      (btns) => {
-        const pageLabelText = btns[2]?.textContent?.split(" ") || "";
-        const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
-        currPageNum = 2;
+  // try {
+  //   totalPageNum = await page.$$eval(
+  //     `[aria-label="table navigation"] li.page-item`,
+  //     (btns) => {
+  //       const pageLabelText = btns[2]?.textContent?.split(" ") || "";
+  //       const pageNumber = Number(pageLabelText[pageLabelText?.length - 1]);
+  //       currPageNum = 2;
 
-        return pageNumber;
-      }
-    );
-  } catch {
-    console.info("Only one page");
-  }
+  //       return pageNumber;
+  //     }
+  //   );
+  // } catch {
+  //   console.info("Only one page");
+  // }
 
   console.log(`Total pages: ${totalPageNum}`);
 
@@ -63,7 +63,7 @@ export const getAllAddressTxns = async (txns: string[], page: Page) => {
 
     txns.push(...txnsList);
   }
-
+  console.log(txns);
   return txns;
 };
 

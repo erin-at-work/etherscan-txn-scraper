@@ -31,8 +31,12 @@ export const isInputFileSource = txnSource === "file" ? true : false;
       width: 1400,
       height: 750,
     },
+    devtools: true,
   });
   const page = await browser.newPage();
+  // page.on("console", (msg) =>
+  //   console.log(`PAGE ${msg.type().toUpperCase()}:`, msg.text())
+  // );
   await page.setRequestInterception(true);
   page.on("request", (request) => {
     if (request.resourceType() === "image") {
@@ -79,7 +83,7 @@ export const isInputFileSource = txnSource === "file" ? true : false;
         (ele) => {
           const spanTextContent =
             ele.textContent?.match(/(?<=\().*(?=\))/) || [];
-          const dateString = spanTextContent[0].split(" ")[0];
+          const dateString = spanTextContent[0]?.split(" ")[0];
           const date = new Date(dateString);
 
           return {
@@ -103,7 +107,7 @@ export const isInputFileSource = txnSource === "file" ? true : false;
 
       // Cost per unit of gas specified for the transaction (in ETH)
       const gasEthPrice = await page.$eval(
-        "#ContentPlaceHolder1_spanGasPrice",
+        "#ContentPlaceHolder1_spanGasPrice > .text-muted",
         (ele) => ele.textContent?.split(" ")[0].replace(/[^0-9.]/g, "")
       );
 
@@ -116,7 +120,7 @@ export const isInputFileSource = txnSource === "file" ? true : false;
 
       // Fee values in USD
       const txnUsdFee = Number(txnEthFee) * Number(ethUSD);
-      const gasUsdFee = Number(gasEthPrice) * Number(ethUSD);
+      const gasUsdFee = (Number(gasEthPrice) / 1000000000) * Number(ethUSD);
       // Total fees in USD
       const spentAmt = txnUsdFee + gasUsdFee;
 
